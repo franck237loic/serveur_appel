@@ -1642,11 +1642,14 @@ wss.on('close', () => {
 // =========================================================
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
 
     console.log('====================================================');
-    console.log(`🚀 Serveur WebSocket & WebRTC & FCM actif sur le port ${PORT}`);
+    console.log(`🚀 Serveur WebSocket & WebRTC & FCM actif`);
+    console.log(`🌐 Host: ${HOST}`);
+    console.log(`📌 Port: ${PORT}`);
     console.log('====================================================');
     console.log('📞 Appels WebSocket     : ACTIVÉS');
     console.log('🧊 Signalisation WebRTC : ACTIVÉE');
