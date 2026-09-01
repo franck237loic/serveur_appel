@@ -1308,7 +1308,17 @@ wss.on('connection', (ws) => {
                             console.log(`[GROUP CALL] ${otherParticipant} informé de la transformation`);
                         }
                         
+                        // Confirmer la transformation à l'initiateur
+                        ws.send(JSON.stringify({
+                            type: 'group-call-joined',
+                            callId: callId
+                        }));
+                        
                         console.log(`[GROUP CALL] Appel transformé en groupe avec ${participantsList.length} participants`);
+                        
+                        // Mettre à jour l'état de l'utilisateur
+                        setUserState(userId, USER_STATE.IN_CALL);
+                        return;
                     } else {
                         console.warn(`[GROUP CALL ERROR] Tentative de rejoindre un appel inexistant : ${callId}`);
                         ws.send(JSON.stringify({
@@ -1317,6 +1327,17 @@ wss.on('connection', (ws) => {
                         }));
                         return;
                     }
+                }
+
+                // Pour les appels de groupe déjà existants (nouveau participant qui rejoint)
+                // Vérifier si l'utilisateur est déjà dans l'appel
+                if (isParticipantInGroupCall(callId, userId)) {
+                    console.log(`[GROUP CALL] ${userId} est déjà dans l'appel ${callId}`);
+                    ws.send(JSON.stringify({
+                        type: 'group-call-joined',
+                        callId: callId
+                    }));
+                    return;
                 }
 
                 // Ajouter le participant
