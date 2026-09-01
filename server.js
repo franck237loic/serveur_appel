@@ -460,25 +460,35 @@ app.get('/users', (req, res) => {
 
 async function sendIncomingCallNotification(targetId, callerId, callId) {
 
-    console.log('----------------------------------------------------');
-    console.log(`📲 Préparation notification FCM`);
-    console.log(`   👤 Appelant  : ${callerId}`);
-    console.log(`   🎯 Destinataire : ${targetId}`);
-    console.log(`   🆔 Call ID   : ${callId}`);
+    console.log('====================================================');
+    console.log(`📲 PRÉPARATION NOTIFICATION FCM`);
+    console.log(`====================================================`);
+    console.log(`👤 Appelant     : ${callerId}`);
+    console.log(`🎯 Destinataire  : ${targetId}`);
+    console.log(`🆔 Call ID      : ${callId}`);
+    console.log(`====================================================`);
 
+    // Vérification Firebase
     if (!firebaseInitialized || !messagingInstance) {
         console.error('❌ Firebase Cloud Messaging n\'est pas initialisé');
+        console.error('   → firebaseInitialized:', firebaseInitialized);
+        console.error('   → messagingInstance:', !!messagingInstance);
         return false;
     }
+    console.log('✅ Firebase Admin SDK initialisé');
 
+    // Vérification token FCM
     const token = fcmTokens.get(targetId);
 
     if (!token) {
         console.log(`❌ Aucun token FCM pour ce destinataire`);
+        console.log(`   → Tokens FCM enregistrés: ${fcmTokens.size}`);
+        console.log(`   → Liste des utilisateurs avec token: ${Array.from(fcmTokens.keys()).join(', ')}`);
         return false;
     }
 
-    console.log(`✅ Token FCM trouvé`);
+    console.log(`✅ Token FCM trouvé pour ${targetId}`);
+    console.log(`   → Token (20 premiers chars): ${token.substring(0, 20)}...`);
     console.log(`📲 Envoi notification FCM...`);
 
     const message = {
@@ -486,14 +496,17 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
         // Style WhatsApp : nom de l'appelant en titre, type d'appel en sous-titre
         notification: {
             title: String(callerId),
-            body: 'Appel vocal entrant'
+            body: 'Appel vocal entrant',
+            // Clique sur notification → ouvre l'app
+            clickAction: 'FCM_PLUGIN_ACTIVITY'
         },
         // data pour que l'app puisse récupérer l'appel à l'ouverture
         data: {
             type: 'incoming-call',
             callId: String(callId),
             callerId: String(callerId),
-            targetId: String(targetId)
+            targetId: String(targetId),
+            timestamp: String(Date.now())
         },
         android: {
             priority: 'high',
@@ -511,7 +524,9 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
                 tag: String(callId),
                 sticky: true,
                 ticker: `Appel vocal de ${callerId}`,
-                notificationCount: 1
+                notificationCount: 1,
+                // Catégorie CALL pour comportement type appel téléphonique
+                category: 'call'
             }
         }
     };
@@ -519,16 +534,27 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
     try {
 
         const response = await messagingInstance.send(message);
-        console.log(`✅ Notification FCM envoyée`);
+        console.log('====================================================');
+        console.log(`✅ NOTIFICATION FCM ENVOYÉE AVEC SUCCÈS`);
+        console.log(`====================================================`);
         console.log(`📨 Firebase Message ID : ${response}`);
-        console.log('----------------------------------------------------');
+        console.log(`🎯 Destinataire : ${targetId}`);
+        console.log(`👤 Appelant : ${callerId}`);
+        console.log(`🆔 Call ID : ${callId}`);
+        console.log('====================================================');
         return true;
 
     } catch (error) {
 
-        console.error(`❌ ERREUR FCM`);
+        console.error('====================================================');
+        console.error(`❌ ERREUR ENVOI FCM`);
+        console.error('====================================================');
         console.error(`Code : ${error.code}`);
         console.error(`Message : ${error.message}`);
+        console.error(`🎯 Destinataire : ${targetId}`);
+        console.error(`👤 Appelant : ${callerId}`);
+        console.error(`🆔 Call ID : ${callId}`);
+        console.error('====================================================');
 
         // Supprimer les tokens définitivement invalides
         if (
@@ -1513,6 +1539,7 @@ wss.on('connection', (ws) => {
                 if (!isValidString(callId, 64) || !isValidString(targetId, 64) || !isValidString(senderId, 64)) {
                     console.warn('[GROUP WEBRTC ERROR] group-call-ice-candidate : données invalides');
                     return;
+                    
                 }
 
                 // Vérifier que les deux sont participants du même appel
