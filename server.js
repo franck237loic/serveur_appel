@@ -1211,7 +1211,12 @@ wss.on('connection', (ws) => {
 
                 // Essayer d'envoyer via WebSocket si connecté
                 const targetWs = users.get(targetId);
+                console.log(`[GROUP CALL DEBUG] targetWs pour ${targetId}:`, targetWs ? 'trouvé' : 'NON trouvé');
+                if (targetWs) {
+                    console.log(`[GROUP CALL DEBUG] targetWs.readyState: ${targetWs.readyState} (1=OPEN)`);
+                }
                 const targetOnline = !!(targetWs && targetWs.readyState === 1);
+                console.log(`[GROUP CALL DEBUG] targetOnline: ${targetOnline}`);
 
                 if (targetOnline) {
                     // Utilisateur en ligne - envoi direct WebSocket
