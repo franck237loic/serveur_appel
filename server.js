@@ -592,7 +592,12 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
             notification_body: 'Appel vocal entrant',
             notification_android_channel_id: 'incoming_calls',
             // Force l'affichage même quand l'app est au premier plan :
-            notification_foreground: 'true'
+            notification_foreground: 'true',
+            // Structure pour cordova-plugin-callkit (VOIP notification)
+            Caller: {
+                Username: String(callerId),
+                ConnectionId: String(callId)
+            }
         },
         android: {
             priority: 'high',
