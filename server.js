@@ -438,20 +438,101 @@ app.get('/users', (req, res) => {
         pendingCallsCount: pendingCalls.size,
         activeCallsCount: activeCalls.size,
         groupCallsCount: groupCalls.size,
-        firebaseInitialized,
-        userStates: Object.fromEntries(userStates),
         users: list,
         pendingCalls: pendingList,
-        activeCalls: Array.from(activeCalls.values()).map((c) => ({
-            callId: c.callId,
-            callerId: c.callerId,
-            calleeId: c.calleeId,
-            status: c.status,
-            createdAt: c.createdAt
-        })),
         groupCalls: groupCallsList
     });
+});
 
+// =========================================================
+// ROUTE TEST FCM DIRECT (diagnostic)
+// =========================================================
+
+app.post('/test-fcm', async (req, res) => {
+    console.log('====================================================');
+    console.log('🧪 TEST FCM DIRECT');
+    console.log('====================================================');
+
+    const { targetId, message } = req.body;
+
+    if (!targetId) {
+        console.error('❌ targetId manquant dans la requête');
+        return res.status(400).json({ error: 'targetId requis' });
+    }
+
+    if (!firebaseInitialized || !messagingInstance) {
+        console.error('❌ Firebase non initialisé');
+        return res.status(500).json({ error: 'Firebase non initialisé' });
+    }
+
+    const token = fcmTokens.get(targetId);
+
+    if (!token) {
+        console.error(`❌ Aucun token FCM pour ${targetId}`);
+        console.log(`   → Tokens disponibles: ${Array.from(fcmTokens.keys()).join(', ')}`);
+        return res.status(404).json({ error: 'Aucun token FCM pour cet utilisateur' });
+    }
+
+    console.log(`✅ Token FCM trouvé pour ${targetId}`);
+    console.log(`   → Token (20 premiers chars): ${token.substring(0, 20)}...`);
+
+    const testMessage = {
+        token: token,
+        // IMPORTANT : Pour cordova-plugin-firebasex en mode terminated, utiliser UNIQUEMENT data
+        data: {
+            type: 'test-notification',
+            timestamp: String(Date.now()),
+            targetId: String(targetId),
+            title: message?.title || 'TEST FCM',
+            body: message?.body || 'Ceci est un test de notification FCM',
+            channelId: 'incoming_calls'
+        },
+        android: {
+            priority: 'high'
+        }
+    };
+
+    try {
+        const response = await messagingInstance.send(testMessage);
+        console.log('====================================================');
+        console.log('✅ TEST FCM RÉUSSI');
+        console.log('====================================================');
+        console.log(`📨 Firebase Message ID: ${response}`);
+        console.log(`🎯 Destinataire: ${targetId}`);
+        console.log('====================================================');
+
+        res.json({
+            success: true,
+            messageId: response,
+            targetId: targetId,
+            tokenPreview: token.substring(0, 20) + '...'
+        });
+
+    } catch (error) {
+        console.error('====================================================');
+        console.error('❌ TEST FCM ÉCHOUÉ');
+        console.error('====================================================');
+        console.error(`Code: ${error.code}`);
+        console.error(`Message: ${error.message}`);
+        console.error(`🎯 Destinataire: ${targetId}`);
+        console.error('====================================================');
+
+        // Supprimer les tokens invalides
+        if (
+            error.code === 'messaging/registration-token-not-registered' ||
+            error.code === 'messaging/invalid-registration-token'
+        ) {
+            console.warn(`🗑️ Token FCM invalide → suppression pour ${targetId}`);
+            fcmTokens.delete(targetId);
+        }
+
+        res.status(500).json({
+            success: false,
+            error: error.code,
+            message: error.message,
+            targetId: targetId
+        });
+    }
 });
 
 // =========================================================
@@ -493,41 +574,22 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
 
     const message = {
         token: token,
-        // Style WhatsApp : nom de l'appelant en titre, type d'appel en sous-titre
-        notification: {
-            title: String(callerId),
-            body: 'Appel vocal entrant',
-            // Clique sur notification → ouvre l'app
-            clickAction: 'FCM_PLUGIN_ACTIVITY'
-        },
-        // data pour que l'app puisse récupérer l'appel à l'ouverture
+        // IMPORTANT : Pour cordova-plugin-firebasex en mode terminated, utiliser UNIQUEMENT data
+        // Le plugin gérera l'affichage de la notification via onMessageReceived
         data: {
             type: 'incoming-call',
             callId: String(callId),
             callerId: String(callerId),
             targetId: String(targetId),
-            timestamp: String(Date.now())
+            timestamp: String(Date.now()),
+            // Données pour l'affichage de la notification côté client
+            title: String(callerId),
+            body: 'Appel vocal entrant',
+            channelId: 'incoming_calls'
         },
         android: {
             priority: 'high',
-            ttl: PENDING_CALL_TTL_MS,
-            notification: {
-                channelId: 'incoming_calls',
-                icon: 'notification_icon',
-                color: '#25D366',
-                sound: 'default',
-                defaultSound: true,
-                defaultVibrateTimings: false,
-                vibrateTimingsMillis: [0, 1000, 500, 1000, 500, 1000],
-                priority: 'max',
-                visibility: 'public',
-                tag: String(callId),
-                sticky: true,
-                ticker: `Appel vocal de ${callerId}`,
-                notificationCount: 1,
-                // Catégorie CALL pour comportement type appel téléphonique
-                category: 'call'
-            }
+            ttl: PENDING_CALL_TTL_MS
         }
     };
 
