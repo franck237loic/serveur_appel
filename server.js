@@ -574,18 +574,25 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
 
     const message = {
         token: token,
-        // IMPORTANT : Pour cordova-plugin-firebasex en mode terminated, utiliser UNIQUEMENT data
-        // Le plugin gérera l'affichage de la notification via onMessageReceived
+        // IMPORTANT : cordova-plugin-firebasex n'affiche automatiquement une
+        // notification système (app en arrière-plan / terminée) QUE si le
+        // payload data utilise ses clés réservées préfixées "notification_".
+        // Des clés libres comme "title"/"body"/"channelId" sont ignorées par
+        // le plugin natif : le message arrive bien au téléphone (FCM le
+        // confirme), mais RIEN ne s'affiche à l'utilisateur.
+        // Réf. README cordova-plugin-firebasex, section "Notifications and data messages".
         data: {
             type: 'incoming-call',
             callId: String(callId),
             callerId: String(callerId),
             targetId: String(targetId),
             timestamp: String(Date.now()),
-            // Données pour l'affichage de la notification côté client
-            title: String(callerId),
-            body: 'Appel vocal entrant',
-            channelId: 'incoming_calls'
+            // Clés reconnues par cordova-plugin-firebasex pour l'affichage auto :
+            notification_title: String(callerId),
+            notification_body: 'Appel vocal entrant',
+            notification_android_channel_id: 'incoming_calls',
+            // Force l'affichage même quand l'app est au premier plan :
+            notification_foreground: 'true'
         },
         android: {
             priority: 'high',
