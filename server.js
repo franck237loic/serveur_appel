@@ -23,7 +23,7 @@ let messagingInstance   = null;
 
 (function initFirebase() {
 
-    const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
+    const serviceAccountPath = '/etc/secrets/serviceAccountKey.json';
 
     if (!fs.existsSync(serviceAccountPath)) {
         console.error('❌ serviceAccountKey.json introuvable :', serviceAccountPath);
