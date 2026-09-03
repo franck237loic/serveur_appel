@@ -573,35 +573,96 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
     console.log(`📲 Envoi notification FCM...`);
 
     const message = {
+
         token: token,
-        // IMPORTANT : cordova-plugin-firebasex n'affiche automatiquement une
-        // notification système (app en arrière-plan / terminée) QUE si le
-        // payload data utilise ses clés réservées préfixées "notification_".
-        // Des clés libres comme "title"/"body"/"channelId" sont ignorées par
-        // le plugin natif : le message arrive bien au téléphone (FCM le
-        // confirme), mais RIEN ne s'affiche à l'utilisateur.
-        // Réf. README cordova-plugin-firebasex, section "Notifications and data messages".
+        // STRATÉGIE WHATSAPP : payload 100% en "data message"
+        // - pas de bloc top-level `notification` (il désactive le render natif cordova-plugin-firebasex
+        //   et empêche le full-screen intent dans certains cas).
+        // - Toutes les clés de display utilisent le préfixe `notification_` officiel de cordova-plugin-firebasex
+        //   qui provoque l'affichage AUTOMATIQUE par le receiver natif FirebaseMessagingService
+        //   du plugin (y compris quand l'app est en arrière-plan ou totalement tuée).
         data: {
             type: 'incoming-call',
             callId: String(callId),
             callerId: String(callerId),
             targetId: String(targetId),
             timestamp: String(Date.now()),
-            // Clés reconnues par cordova-plugin-firebasex pour l'affichage auto :
+
+            // ---------- Clés reconnues PAR CORDOVA-PLUGIN-FIREBASEX ----------
             notification_title: String(callerId),
             notification_body: 'Appel vocal entrant',
             notification_android_channel_id: 'incoming_calls',
-            // Force l'affichage même quand l'app est au premier plan :
+            notification_android_channel_name: 'Appels vocaux',
+            notification_android_priority: 'max',
+            notification_android_visibility: 'public',
+            notification_android_sticky: 'true',
+            notification_android_not_persistent: 'false',
+            notification_android_ongoing: 'true',
+            notification_android_tag: String(callId),
+            notification_android_icon: 'notification_icon',
+            notification_android_color: '#25D366',
+            notification_android_sound: 'default',
+            notification_android_vibrate: 'true',
+            notification_android_vibration_pattern: '0,1000,500,1000,500,1000',
+            notification_android_lights: 'true',
+            notification_android_light_color: '#25D366',
+            notification_android_light_pattern: '500,500',
+            notification_android_category: 'call',
+            notification_android_show_when: 'true',
+            notification_android_uses_chronometer: 'false',
+            notification_android_timeout_after: String(PENDING_CALL_TTL_MS),
+            notification_android_local_only: 'false',
             notification_foreground: 'true',
-            // Structure pour cordova-plugin-callkit (VOIP notification)
-            Caller: {
+            notification_android_click_action: 'TAP_NOTIFICATION',
+
+            // Actions affichées PAR CORDOVA-PLUGIN-FIREBASEX DANS LA NOTIF SYSTÈME
+            notification_android_actions: '[{"icon":"ic_menu_call","title":"Répondre","callback":"ACCEPT_CALL","foreground":true},{"icon":"ic_menu_close_clear_cancel","title":"Refuser","callback":"REJECT_CALL","foreground":false}]',
+
+            // Intention full-screen intent (tier-écran sur lockscreen)
+            notification_android_full_screen_intent: 'true',
+            notification_android_full_screen_intent_action: 'com.callapp.ACTION_INCOMING_CALL',
+
+            // Structure pour cordova-plugin-callkit (si installé)
+            Caller: JSON.stringify({
                 Username: String(callerId),
                 ConnectionId: String(callId)
-            }
+            })
         },
         android: {
+            // Priorité FCM MAX pour passage Doze / App Standby
             priority: 'high',
-            ttl: PENDING_CALL_TTL_MS
+            ttl: PENDING_CALL_TTL_MS,
+            // On garde un bloc notification vide pour priorité + son, mais PAS de title/body ici
+            notification: {
+                channelId: 'incoming_calls',
+                // CATEGORY_CALL force Android traite la notif comme un appel téléphonique
+                // => priorité maximale, bypass DND si canal "priorité élevée"
+                // sticky, public, default_vibrate, default_sound
+                sticky: true,
+                ongoing: true,
+                priority: 'max',
+                visibility: 'public',
+                sound: 'default',
+                defaultSound: true,
+                defaultVibrateTimings: false,
+                vibrateTimingsMillis: [0, 1000, 500, 1000, 500, 1000],
+                defaultLightSettings: false,
+                lightSettings: { color: '#25D366', lightOnDurationMillis: 500, lightOffDurationMillis: 500 },
+                tag: String(callId),
+                ticker: `${callerId} appelle`,
+                icon: 'notification_icon',
+                color: '#25D366',
+                image: null,
+                notificationCount: 1,
+                localOnly: false,
+                eventTimestamp: Date.now(),
+                showTimestamp: true,
+                timeoutAfter: PENDING_CALL_TTL_MS
+            },
+            fcmOptions: {
+                analyticsLabel: 'incoming_call_' + String(callId)
+            },
+            directBootOk: true
         }
     };
 
@@ -681,6 +742,7 @@ async function sendGroupCallInvitationNotification(targetId, callId, callerId, a
 
     const message = {
         token: token,
+        // Même stratégie data-only pour que firebasex render la notification système
         notification: {
             title: 'Appel audio de groupe',
             body: `${addedBy} vous invite à rejoindre un appel`
@@ -691,7 +753,34 @@ async function sendGroupCallInvitationNotification(targetId, callId, callerId, a
             callerId: String(callerId),
             addedBy: String(addedBy),
             targetId: String(targetId),
-            callType: 'audio'
+            callType: 'audio',
+            timestamp: String(Date.now()),
+
+            notification_title: `Appel de groupe — ${addedBy}`,
+            notification_body: `${addedBy} vous invite à rejoindre un appel`,
+            notification_android_channel_id: 'incoming_calls',
+            notification_android_channel_name: 'Appels vocaux',
+            notification_android_priority: 'max',
+            notification_android_visibility: 'public',
+            notification_android_sticky: 'true',
+            notification_android_ongoing: 'true',
+            notification_android_tag: String(callId),
+            notification_android_icon: 'notification_icon',
+            notification_android_color: '#25D366',
+            notification_android_sound: 'default',
+            notification_android_vibrate: 'true',
+            notification_android_vibration_pattern: '0,1000,500,1000,500,1000',
+            notification_android_lights: 'true',
+            notification_android_light_color: '#25D366',
+            notification_android_light_pattern: '500,500',
+            notification_android_category: 'call',
+            notification_android_show_when: 'true',
+            notification_android_timeout_after: String(PENDING_CALL_TTL_MS),
+            notification_foreground: 'true',
+            notification_android_click_action: 'TAP_NOTIFICATION',
+            notification_android_actions: '[{"icon":"ic_menu_call","title":"Rejoindre","callback":"ACCEPT_CALL","foreground":true},{"icon":"ic_menu_close_clear_cancel","title":"Refuser","callback":"REJECT_CALL","foreground":false}]',
+            notification_android_full_screen_intent: 'true',
+            notification_android_full_screen_intent_action: 'com.callapp.ACTION_INCOMING_CALL'
         },
         android: {
             priority: 'high',
@@ -708,7 +797,12 @@ async function sendGroupCallInvitationNotification(targetId, callId, callerId, a
                 visibility: 'public',
                 tag: String(callId),
                 sticky: true,
+                ongoing: true,
                 ticker: `Invitation d'appel de groupe de ${addedBy}`,
+                defaultLightSettings: false,
+                lightSettings: { color: '#25D366', lightOnDurationMillis: 500, lightOffDurationMillis: 500 },
+                showTimestamp: true,
+                timeoutAfter: PENDING_CALL_TTL_MS,
                 notificationCount: 1
             }
         }
