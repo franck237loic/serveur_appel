@@ -629,43 +629,50 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
             })
         },
         android: {
-            // Priorité FCM MAX pour passage Doze / App Standby
-            priority: 'high',
-            ttl: PENDING_CALL_TTL_MS,
-            // On garde un bloc notification vide pour priorité + son, mais PAS de title/body ici
-            notification: {
-                channelId: 'incoming_calls',
-                // CATEGORY_CALL force Android traite la notif comme un appel téléphonique
-                // => priorité maximale, bypass DND si canal "priorité élevée"
-                // sticky, public, default_vibrate, default_sound
-                sticky: true,
-                ongoing: true,
-                priority: 'max',
-                visibility: 'public',
-                sound: 'default',
-                defaultSound: true,
-                defaultVibrateTimings: false,
-                vibrateTimingsMillis: [0, 1000, 500, 1000, 500, 1000],
-                defaultLightSettings: false,
-                lightSettings: { color: '#25D366', lightOnDurationMillis: 500, lightOffDurationMillis: 500 },
-                tag: String(callId),
-                ticker: `${callerId} appelle`,
-                icon: 'notification_icon',
-                color: '#25D366',
-                image: null,
-                notificationCount: 1,
-                localOnly: false,
-                eventTimestamp: Date.now(),
-                showTimestamp: true,
-                timeoutAfter: PENDING_CALL_TTL_MS
-            },
-            fcmOptions: {
-                analyticsLabel: 'incoming_call_' + String(callId)
-            },
-            directBootOk: true
-        }
-    };
+    priority: 'high',
+    ttl: PENDING_CALL_TTL_MS,
 
+    notification: {
+        channelId: 'incoming_calls',
+        icon: 'notification_icon',
+        color: '#25D366',
+
+        sound: 'default',
+        defaultSound: true,
+
+        priority: 'max',
+        visibility: 'public',
+
+        defaultVibrateTimings: false,
+        vibrateTimingsMillis: [
+            0,
+            1000,
+            500,
+            1000,
+            500,
+            1000
+        ],
+
+        defaultLightSettings: false,
+        lightSettings: {
+            color: '#25D366',
+            lightOnDurationMillis: 500,
+            lightOffDurationMillis: 500
+        },
+
+        tag: String(callId),
+        ticker: `Appel entrant de ${callerId}`,
+        notificationCount: 1,
+        localOnly: false,
+        sticky: true
+    },
+
+    fcmOptions: {
+        analyticsLabel: 'incoming_call_' + String(callId)
+    },
+
+    directBootOk: true
+}
     try {
 
         const response = await messagingInstance.send(message);
