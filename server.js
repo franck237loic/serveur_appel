@@ -629,50 +629,52 @@ async function sendIncomingCallNotification(targetId, callerId, callId) {
             })
         },
         android: {
-    priority: 'high',
-    ttl: PENDING_CALL_TTL_MS,
+            priority: 'high',
+            ttl: PENDING_CALL_TTL_MS,
 
-    notification: {
-        channelId: 'incoming_calls',
-        icon: 'notification_icon',
-        color: '#25D366',
+            notification: {
+                channelId: 'incoming_calls',
+                icon: 'notification_icon',
+                color: '#25D366',
 
-        sound: 'default',
-        defaultSound: true,
+                sound: 'default',
+                defaultSound: true,
 
-        priority: 'max',
-        visibility: 'public',
+                priority: 'max',
+                visibility: 'public',
 
-        defaultVibrateTimings: false,
-        vibrateTimingsMillis: [
-            0,
-            1000,
-            500,
-            1000,
-            500,
-            1000
-        ],
+                defaultVibrateTimings: false,
+                vibrateTimingsMillis: [
+                    0,
+                    1000,
+                    500,
+                    1000,
+                    500,
+                    1000
+                ],
 
-        defaultLightSettings: false,
-        lightSettings: {
-            color: '#25D366',
-            lightOnDurationMillis: 500,
-            lightOffDurationMillis: 500
-        },
+                defaultLightSettings: false,
+                lightSettings: {
+                    color: '#25D366',
+                    lightOnDurationMillis: 500,
+                    lightOffDurationMillis: 500
+                },
 
-        tag: String(callId),
-        ticker: `Appel entrant de ${callerId}`,
-        notificationCount: 1,
-        localOnly: false,
-        sticky: true
-    },
+                tag: String(callId),
+                ticker: `Appel entrant de ${callerId}`,
+                notificationCount: 1,
+                localOnly: false,
+                sticky: true
+            },
 
-    fcmOptions: {
-        analyticsLabel: 'incoming_call_' + String(callId)
-    },
+            fcmOptions: {
+                analyticsLabel: 'incoming_call_' + String(callId)
+            },
 
-    directBootOk: true
-}
+            directBootOk: true
+        }
+    };
+
     try {
 
         const response = await messagingInstance.send(message);
